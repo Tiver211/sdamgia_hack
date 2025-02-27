@@ -4,4 +4,6 @@ LABEL authors="tiver"
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
 
-ENTRYPOINT ["python", "run"]
+COPY . ./telegram_bot
+
+ENTRYPOINT ["python", "-m", "telegram_bot.run"]

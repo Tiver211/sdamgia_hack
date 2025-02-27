@@ -1,0 +1,7 @@
+PyTelegramBotApi
+telebot-dialogue
+requests
+beautifulsoup4
+python-dotenv
+lxml
+psycopg2-binary
