@@ -1,0 +1,20 @@
+services:
+  vpr_hacker:
+    build: ./telegeam_bot
+    ports:
+      - "8080:8080"
+    environment:
+      - TOKEN=${BOT_TOKEN}
+      - POSTGRES_CONN=${POSTGRES_CONN}
+    depends_on:
+      - postgres_hacker
+
+  postgres_hacker:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    ports:
+      - "5432:5432"
