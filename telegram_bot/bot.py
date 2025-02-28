@@ -59,6 +59,14 @@ def login_button(call: types.CallbackQuery):
     dialogue_manager.add_dialogue(dialogue)
     bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Введите логин")
 
+@bot.message_handler(commands=['hack'])
+def hack_command(message: types.Message):
+    subj = message.text.split(" ")[1]
+    subj = Subj(subj, "https://sdamgia.ru")
+    hacker = ProblemHacker(os.getenv("POSTGRES_CONN"), subj.name, subj.base_url, subj.loginname, subj.password)
+    hacker.hack_subj(subj)
+    bot.send_message(message.from_user.id, "Завершено")
+
 @bot.message_handler(content_types=["text"])
 def multi_handler(message):
     dialogue_manager.handle_message(message)
@@ -175,3 +183,4 @@ def login_test(login, password):
         return False
 
     return True
+
