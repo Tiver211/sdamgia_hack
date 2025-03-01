@@ -1,5 +1,3 @@
-import os
-import time
 from .sdamgia_hack.parser import *
 import psycopg2
 import requests
@@ -21,16 +19,13 @@ while cursor is None:
 
 
 def init_system():
-    hacker = ProblemHacker(bd_conn=os.getenv("POSTGRES_CONN"), name="math8-vpr", base_url="https://sdamgia.ru")
-    print("hacking", flush=True)
-    #hacker.hack_subj(Subj.from_url("https://math8-vpr.sdamgia.ru"))
-    print("hacked", flush=True)
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         user_id INTEGER UNIQUE NOT NULL,
         login VARCHAR(255),
         password VARCHAR(255)
     );''')
+    conn.commit()
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
@@ -170,9 +165,11 @@ def get_login(user_id):
 
 def login_user(user_id, login, password):
     cursor.execute("INSERT INTO users (user_id, login, password) VALUES (%s, %s, %s)", (user_id, login, password))
+    conn.commit()
 
 def logout_user(user_id):
     cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+    conn.commit()
 
 def login_test(login, password):
     ans = requests.post("https://math8-vpr.sdamgia.ru/newapi/login", json={"guest": False, "password": password, "user": login})

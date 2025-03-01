@@ -1,4 +1,7 @@
-requests
-beautifulsoup4
-python-dotenv
+requests~=2.32.3
+beautifulsoup4~=4.13.3
+python-dotenv~=1.0.1
 lxml
+psycopg2-binary~=2.9.10
+pyTelegramBotAPI~=4.26.0
+telebot_dialogue~=0.3.4
