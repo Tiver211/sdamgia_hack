@@ -5,6 +5,20 @@ import telebot
 from telebot import types
 from telebot_dialogue import DialogueManager, Dialogue
 
+if not os.path.isdir("logs"):
+    os.mkdir("logs")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(f'logs/{datetime.datetime.now().timestamp()}telegram_bot.log')
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 bot = telebot.TeleBot(os.getenv('TOKEN'))
 dialogue_manager = DialogueManager()
 
@@ -26,9 +40,11 @@ def init_system():
         password VARCHAR(255)
     );''')
     conn.commit()
+    logger.info("System inited")
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
+    logger.info(f"user: {message.from_user.id} requested start menu")
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(types.InlineKeyboardButton('Открыть меню', callback_data='main_menu_return'))
     bot.send_message(message.chat.id, '''Привет! Это бот для автоматического решения тестов из сервиса СДАМГИА. 
@@ -44,35 +60,42 @@ def start_command(message):
 
 @bot.callback_query_handler(func=lambda call: call.data == "main_menu_return")
 def main_menu_return(call: types.CallbackQuery):
+    logger.info(f"user: {call.message.chat.id} requested main menu return menu")
     dialogue_manager.finish_dialogue(call.message.chat.id)
     menu = get_main_menu(call.message.chat.id)
     bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, **menu)
 
 @bot.callback_query_handler(func=lambda call: call.data == "login_button")
 def login_button(call: types.CallbackQuery):
+    logger.info(f"user: {call.message.chat.id} requested login button")
     dialogue = Dialogue(call.message.chat.id, get_user_login)
     dialogue_manager.add_dialogue(dialogue)
     bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, text="Введите логин")
 
 @bot.message_handler(commands=['hack'])
 def hack_command(message: types.Message):
+    logger.info(f"user: {message.from_user.id} start hacking subj: {message.text}")
     subj = message.text.split(" ")[1]
     subj = Subj(subj, "https://sdamgia.ru")
+    bot.send_message(message.chat.id, "Запущено, ожидайте")
     hacker = ProblemHacker(os.getenv("POSTGRES_CONN"), subj.name, subj.base_url, subj.loginname, subj.password)
     hacker.hack_subj(subj)
     bot.send_message(message.from_user.id, "Завершено")
 
 @bot.message_handler(content_types=["text"])
 def multi_handler(message):
+    logger.info(f"user: {message.from_user.id} send message")
     dialogue_manager.handle_message(message)
 
 def get_user_login(message: types.Message, dialogue: Dialogue):
+    logger.info(f"user: {message.from_user.id} sended login")
     login = message.text
     dialogue.update_context("login", login)
     dialogue.handler = get_user_password
     bot.send_message(chat_id=dialogue.user_id, text="Введите пароль")
 
 def get_user_password(message: types.Message, dialogue: Dialogue):
+    logger.info(f"user: {message.from_user.id} sended password")
     password = message.text
     login = dialogue.get_context("login")
 
@@ -89,17 +112,20 @@ def get_user_password(message: types.Message, dialogue: Dialogue):
 
 @bot.callback_query_handler(func=lambda call: call.data == "logout")
 def logout_call(call: types.CallbackQuery):
+    logger.info(f"user: {call.message.chat.id} requested logout")
     logout_user(call.message.chat.id)
     bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.id, **get_main_menu(call.message.chat.id))
 
 @bot.callback_query_handler(func=lambda call: call.data == "solve_test_button")
 def solve_test_button(call: types.CallbackQuery):
+    logger.info(f"user: {call.message.chat.id} requested solve test button")
     dialogue = Dialogue(call.message.chat.id, get_test_url)
     dialogue_manager.add_dialogue(dialogue)
     bot.edit_message_text("введите ссылку на тест, например: https://math8-vpr.sdamgia.ru/test?id=2530414", call.message.chat.id, call.message.id)
 
 
 def get_test_url(message: types.Message, dialogue: Dialogue):
+    logger.info(f"user: {message.from_user.id} sended test url: {message.text}")
     url = message.text
     user_data = get_login(dialogue.user_id)
     if not user_data:
@@ -108,9 +134,8 @@ def get_test_url(message: types.Message, dialogue: Dialogue):
     test = Test.from_url(url, *user_data)
     data = test.get_problems_answers()
     ans = "Ответы на все вопросы, вы можете сохранить и тогда после перехода по ссылке короткие ответы уже будут введены\n"
-    print(data, flush=True)
     for problem in data.items():
-        print(problem, flush=True)
+        logger.debug(f"user: {message.from_user.id} problem {str(problem)}")
         ans += f"{problem[0]}: Ответ: {problem[1][0]}, ссылка на решение: {problem[1][1]}\n"
 
     keyboard = types.InlineKeyboardMarkup()
@@ -120,6 +145,7 @@ def get_test_url(message: types.Message, dialogue: Dialogue):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("save_answers:"))
 def save_answers(call: types.CallbackQuery):
+    logger.info(f"user: {call.message.chat.id} requested save answers")
     url = call.data.replace("save_answers:", "")
     user_data = get_login(call.message.chat.id)
     if not user_data:

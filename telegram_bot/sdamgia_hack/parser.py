@@ -1,19 +1,24 @@
+import datetime
 import logging
 import math
 import os
 import sys
 import threading
 import time
-
 import psycopg2
+import datetime
 import requests
 from bs4 import BeautifulSoup
+
+if not os.path.isdir("logs"):
+    os.mkdir("logs")
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler()
+        logging.StreamHandler(),
+        logging.FileHandler(f'logs/{datetime.datetime.now().timestamp()}telegram_bot.log')
     ]
 )
 
