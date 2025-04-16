@@ -8,16 +8,23 @@ from telebot_dialogue import DialogueManager, Dialogue
 if not os.path.isdir("logs"):
     os.mkdir("logs")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(f'logs/{datetime.datetime.now().timestamp()}telegram_bot.log')
-    ]
-)
-
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Ловим ВСЕ уровни (от DEBUG)
+
+# Формат логов
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+# 1. Файловый обработчик (пишет ВСЁ, включая DEBUG)
+file_handler = logging.FileHandler(f'logs/{datetime.datetime.now().timestamp()}telegram_bot.log')
+file_handler.setLevel(os.getenv("LOGGER_LEVEL"))  # Записываем все уровни
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# 2. Консольный обработчик (только INFO и выше)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)  # Только INFO, WARNING, ERROR, CRITICAL
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 bot = telebot.TeleBot(os.getenv('TOKEN'))
 dialogue_manager = DialogueManager()
@@ -75,11 +82,16 @@ def login_button(call: types.CallbackQuery):
 @bot.message_handler(commands=['hack'])
 def hack_command(message: types.Message):
     logger.info(f"user: {message.from_user.id} start hacking subj: {message.text}")
-    subj = message.text.split(" ")[1]
+    args = message.text.split(" ")
+    if len(args) < 3:
+        bot.send_message(message.from_user.id, "Недостаточно аргументов")
+        return
+    subj = args[1]
+    stop_num = int(args[2])
     subj = Subj(subj, "https://sdamgia.ru")
     bot.send_message(message.chat.id, "Запущено, ожидайте")
     hacker = ProblemHacker(os.getenv("POSTGRES_CONN"), subj.name, subj.base_url, subj.loginname, subj.password)
-    hacker.hack_subj(subj)
+    hacker.hack_subj(subj, stop_num)
     bot.send_message(message.from_user.id, "Завершено")
 
 @bot.message_handler(content_types=["text"])

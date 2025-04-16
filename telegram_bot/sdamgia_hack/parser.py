@@ -13,16 +13,24 @@ from bs4 import BeautifulSoup
 if not os.path.isdir("logs"):
     os.mkdir("logs")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(f'logs/{datetime.datetime.now().timestamp()}telegram_bot.log')
-    ]
-)
-
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Ловим ВСЕ уровни (от DEBUG)
+
+# Формат логов
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+# 1. Файловый обработчик (пишет ВСЁ, включая DEBUG)
+file_handler = logging.FileHandler(f'logs/{datetime.datetime.now().timestamp()}telegram_bot.log')
+file_handler.setLevel(os.getenv("LOGGER_LEVEL"))  # Записываем все уровни
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# 2. Консольный обработчик (только INFO и выше)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)  # Только INFO, WARNING, ERROR, CRITICAL
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
 
 
 class Subj:
@@ -88,9 +96,10 @@ class ProblemHacker(Subj):
 
         return Problem(self.name, self.base_url, problem_id)
 
-    def hack_subj(self, subj: Subj, stop_num: int = 10000):
+    def hack_subj(self, subj: Subj, stop_num: int = 1000000):
         threads = []
         for i in range(0, stop_num, stop_num//10):
+            logger.info(f"Старт потока хакера, предмет: {subj.subj_url}")
             t = threading.Thread(target=self.problems_hacker, args=(subj.subj_url, i, min(i+stop_num/10, stop_num)))
             threads.append(t)
             t.start()
@@ -105,8 +114,12 @@ class ProblemHacker(Subj):
             stop_num = math.inf
         while a < stop_num:
             url = f"{subj_url}/problem?id={a}"
-
-            response = self.session.get(url)
+            logger.debug(f"Получения задачи по ссылке {url}")
+            try:
+                response = self.session.get(url)
+            except ConnectionError:
+                logger.warning(f"Ошибка подключения к серверу sdamgia по ссылке: {url}")
+                continue
             parser = BeautifulSoup(response.text, "html.parser")
             problem = parser.find(class_="prob_maindiv")
             if not problem:
@@ -124,7 +137,6 @@ class ProblemHacker(Subj):
             a += 1
 
     def save_problem(self, secret_id, public_id, subj_url, cursor = None, conn = None):
-        print(secret_id, public_id)
         if not cursor or not conn:
             cursor = self.cursor
             conn = self.conn
@@ -313,7 +325,7 @@ if __name__ == '__main__':
             target = arg.replace("--target=", "")
             if target == "hack":
                 hacker = ProblemHacker(os.getenv("POSTGRES_CONN"), name="math8-vpr", base_url="https://sdamgia.ru")
-                hacker.hack_subj(subj=hacker, )
+                hacker.hack_subj(subj=hacker)
                 break
 
             elif target == "get":

@@ -6,6 +6,7 @@ services:
     environment:
       - TOKEN=${BOT_TOKEN}
       - POSTGRES_CONN=${POSTGRES_CONN}
+      - LOGGER_LEVEL=${LOGGER_LEVEL}
     depends_on:
       - postgres_hacker
 
